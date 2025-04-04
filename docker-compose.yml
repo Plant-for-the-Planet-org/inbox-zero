@@ -1,20 +1,5 @@
 name: inbox-zero-services
 services:
-  db:
-    image: postgres
-    restart: always
-    container_name: inbox-zero
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-inboxzero}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-    volumes:
-      - database-data:/var/lib/postgresql/data/
-    ports:
-      - ${POSTGRES_PORT:-5432}:5432
-    networks:
-      - inbox-zero-network
-
   redis:
     image: redis
     ports:
@@ -44,15 +29,13 @@ services:
     env_file:
       - ./.env
     depends_on:
-      - db
       - redis
     ports:
       - ${WEB_PORT:-3000}:3000
     networks:
       - inbox-zero-network
     environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-inboxzero}?schema=public"
-      DIRECT_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-inboxzero}?schema=public"
+      DIRECT_URL: "${DATABASE_URL}"
 
 volumes:
   database-data:
