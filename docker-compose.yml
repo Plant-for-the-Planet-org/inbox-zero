@@ -9,7 +9,7 @@ services:
     environment:
       SRH_MODE: env
       SRH_TOKEN: ${UPSTASH_REDIS_TOKEN}
-      SRH_CONNECTION_STRING: "${REDIS_URL}" # Using `redis` hostname since they're in the same Docker network.
+      SRH_CONNECTION_STRING: "${REDIS_URL}" # I'm creating a seprate redis instance and passing it here.
     networks:
       - inbox-zero-network
 
@@ -25,6 +25,9 @@ services:
       - inbox-zero-network
     environment:
       DIRECT_URL: "${DATABASE_URL}"
+      UPSTASH_REDIS_URL: "http://serverless-redis-http:80" #this url is exposed by the serverless-redis-http container.
+      UPSTASH_REDIS_TOKEN: "${UPSTASH_REDIS_TOKEN}" #this token is passed to serverless-redis-http container, generate it on your own.
+      NEXT_PUBLIC_APP_HOME_PATH: "/automation"
 
 volumes:
   database-data:
