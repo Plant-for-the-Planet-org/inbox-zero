@@ -64,7 +64,7 @@ export const env = createEnv({
       .optional()
       .transform((value) => value?.split(",")),
     WEBHOOK_URL: z.string().optional(),
-    INTERNAL_API_KEY: z.string().optional(),
+    INTERNAL_API_KEY: z.string(),
     WHITELIST_FROM: z.string().optional(),
     USE_BACKUP_MODEL: z.coerce.boolean().optional().default(false),
 
@@ -84,7 +84,7 @@ export const env = createEnv({
     ECONOMY_LLM_MODEL: z
       .string()
       .optional()
-      .default("meta-llama/llama-4-maverick"),
+      .default("google/gemini-2.0-flash-001"),
 
     // license
     LICENSE_1_SEAT_VARIANT_ID: z.coerce.number().optional(),

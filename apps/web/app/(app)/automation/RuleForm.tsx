@@ -31,8 +31,9 @@ import {
   ActionType,
   CategoryFilterType,
   LogicalOperator,
-  RuleType,
+  SystemType,
 } from "@prisma/client";
+import { ConditionType, type CoreConditionType } from "@/utils/config";
 import { createRuleAction, updateRuleAction } from "@/utils/actions/rule";
 import {
   type CreateRuleBody,
@@ -64,6 +65,8 @@ import {
 import { LearnedPatterns } from "@/app/(app)/automation/group/LearnedPatterns";
 import { Tooltip } from "@/components/Tooltip";
 import { createGroupAction } from "@/utils/actions/group";
+import { NEEDS_REPLY_LABEL_NAME } from "@/utils/reply-tracker/consts";
+import { Badge } from "@/components/Badge";
 
 export function RuleForm({
   rule,
@@ -188,9 +191,13 @@ export function RuleForm({
   const conditions = watch("conditions");
   const unusedCondition = useMemo(() => {
     const usedConditions = new Set(conditions?.map(({ type }) => type));
-    return [RuleType.AI, RuleType.STATIC, RuleType.CATEGORY].find(
-      (type) => !usedConditions.has(type),
-    ) as Exclude<RuleType, "GROUP"> | undefined;
+    return [
+      ConditionType.AI,
+      ConditionType.STATIC,
+      ConditionType.CATEGORY,
+    ].find((type) => !usedConditions.has(type)) as
+      | CoreConditionType
+      | undefined;
   }, [conditions]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
@@ -223,7 +230,7 @@ export function RuleForm({
       { label: "Mark read", value: ActionType.MARK_READ },
       { label: "Mark spam", value: ActionType.MARK_SPAM },
       { label: "Call webhook", value: ActionType.CALL_WEBHOOK },
-      { label: "Track thread", value: ActionType.TRACK_THREAD },
+      { label: "Track reply", value: ActionType.TRACK_THREAD },
     ];
   }, []);
 
@@ -259,8 +266,17 @@ export function RuleForm({
         />
       </div>
 
+      {showSystemTypeBadge(rule.systemType) && (
+        <div className="mt-2 flex items-center gap-2">
+          <Badge color="green">
+            This rule has special preset logic that may impact your conditions
+          </Badge>
+        </div>
+      )}
+
       <div className="mt-6 flex items-end justify-between">
         <TypographyH3>Conditions</TypographyH3>
+
         <div className="flex items-center gap-1.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -337,9 +353,9 @@ export function RuleForm({
                 <Select
                   label="Type"
                   options={[
-                    { label: "AI", value: RuleType.AI },
-                    { label: "Static", value: RuleType.STATIC },
-                    { label: "Sender Category", value: RuleType.CATEGORY },
+                    { label: "AI", value: ConditionType.AI },
+                    { label: "Static", value: ConditionType.STATIC },
+                    { label: "Sender Category", value: ConditionType.CATEGORY },
                   ]}
                   error={
                     errors.conditions?.[index]?.type as FieldError | undefined
@@ -370,7 +386,7 @@ export function RuleForm({
               </div>
 
               <div className="space-y-4 sm:col-span-3">
-                {watch(`conditions.${index}.type`) === RuleType.AI && (
+                {watch(`conditions.${index}.type`) === ConditionType.AI && (
                   <Input
                     type="text"
                     autosizeTextarea
@@ -390,7 +406,7 @@ export function RuleForm({
                   />
                 )}
 
-                {watch(`conditions.${index}.type`) === RuleType.STATIC && (
+                {watch(`conditions.${index}.type`) === ConditionType.STATIC && (
                   <>
                     <Input
                       type="text"
@@ -433,7 +449,8 @@ export function RuleForm({
                   </>
                 )}
 
-                {watch(`conditions.${index}.type`) === RuleType.CATEGORY && (
+                {watch(`conditions.${index}.type`) ===
+                  ConditionType.CATEGORY && (
                   <>
                     <div className="flex items-center gap-4">
                       <RadioGroup
@@ -794,7 +811,10 @@ function ReplyTrackerAction() {
   return (
     <div className="h-full flex items-center justify-center">
       <div className="text-center text-sm text-muted-foreground max-w-sm">
-        Automatically updates the label when you reply.
+        Used for reply tracking (Reply Zero). This action tracks emails this
+        rule is applied to and removes the{" "}
+        <Badge color="green">{NEEDS_REPLY_LABEL_NAME}</Badge> label after you
+        reply to the email.
       </div>
     </div>
   );
@@ -882,7 +902,7 @@ function ActionField({
           />
         </div>
       ) : isDraftContent && !setManually ? (
-        <div className="h-full flex flex-col items-center justify-center gap-2">
+        <div className="h-full flex flex-col items-center justify-center gap-2 border rounded py-8 mt-2">
           <div className="text-center text-sm text-muted-foreground max-w-sm">
             Our AI will generate a reply using your knowledge base and previous
             conversations with the sender
@@ -953,4 +973,10 @@ function ActionField({
       {fieldError && <ErrorMessage message={fieldError.toString()} />}
     </div>
   );
+}
+
+function showSystemTypeBadge(systemType?: SystemType | null): boolean {
+  if (systemType === SystemType.TO_REPLY) return true;
+  if (systemType === SystemType.CALENDAR) return true;
+  return false;
 }

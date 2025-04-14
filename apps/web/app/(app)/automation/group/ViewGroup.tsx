@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR, { type KeyedMutator } from "swr";
+import sortBy from "lodash/sortBy";
 import Link from "next/link";
 import { PlusIcon, ExternalLinkIcon, TrashIcon } from "lucide-react";
 import {
@@ -39,6 +40,8 @@ import {
 } from "@/utils/actions/group.validation";
 import { isActionError } from "@/utils/error";
 import { Badge } from "@/components/ui/badge";
+import { formatShortDate } from "@/utils/date";
+import { Tooltip } from "@/components/Tooltip";
 
 export function ViewGroup({ groupId }: { groupId: string }) {
   const { data, isLoading, error, mutate } = useSWR<GroupItemsResponse>(
@@ -267,7 +270,7 @@ function GroupItemList({
         </TableHeader>
       )}
       <TableBody>
-        {items.map((item) => {
+        {sortBy(items, (item) => -new Date(item.createdAt)).map((item) => {
           const twoMinutesAgo = new Date(Date.now() - 1000 * 60 * 2);
           const isCreatedRecently = new Date(item.createdAt) > twoMinutesAgo;
           const isUpdatedRecently = new Date(item.updatedAt) > twoMinutesAgo;
@@ -288,7 +291,13 @@ function GroupItemList({
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="py-2 text-right">
+              <TableCell className="py-2 text-right flex justify-end items-center gap-4">
+                <Tooltip content="Date added">
+                  <span className="text-sm text-muted-foreground">
+                    {formatShortDate(new Date(item.createdAt))}
+                  </span>
+                </Tooltip>
+
                 <Button
                   variant="outline"
                   size="icon"
@@ -296,9 +305,12 @@ function GroupItemList({
                     const result = await deleteGroupItemAction(item.id);
                     if (isActionError(result)) {
                       toastError({
-                        description: `Failed to remove ${item.value} from group. ${result.error}`,
+                        description: `Failed to remove ${item.value}. ${result.error}`,
                       });
                     } else {
+                      toastSuccess({
+                        description: "Removed learned pattern!",
+                      });
                       mutate();
                     }
                   }}
@@ -312,7 +324,7 @@ function GroupItemList({
 
         {items.length === 0 && (
           <TableRow>
-            <TableCell colSpan={2}>
+            <TableCell colSpan={3}>
               <MessageText>No items</MessageText>
             </TableCell>
           </TableRow>

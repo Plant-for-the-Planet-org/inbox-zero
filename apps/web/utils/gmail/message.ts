@@ -10,6 +10,7 @@ import {
 import { getBatch } from "@/utils/gmail/batch";
 import { extractDomainFromEmail } from "@/utils/email";
 import { createScopedLogger } from "@/utils/logger";
+import { sleep } from "@/utils/sleep";
 
 const logger = createScopedLogger("gmail/message");
 
@@ -55,7 +56,12 @@ export async function getMessageByRfc822Id(
 export async function getMessagesBatch(
   messageIds: string[],
   accessToken: string,
+  retryCount = 0,
 ): Promise<ParsedMessage[]> {
+  if (retryCount > 3) {
+    logger.error("Too many retries", { messageIds, retryCount });
+    return [];
+  }
   if (messageIds.length > 100) throw new Error("Too many messages. Max 1000");
 
   const batch: (MessageWithPayload | BatchError)[] = await getBatch(
@@ -64,15 +70,16 @@ export async function getMessagesBatch(
     accessToken,
   );
 
+  const missingMessageIds = new Set<string>();
+
   const messages = batch
-    .map((message) => {
+    .map((message, i) => {
       if (isBatchError(message)) {
-        // TODO need a better way to handle this
-        // https://claude.ai/chat/3984ad45-f5d4-4196-8309-9b5dc9211d05
         logger.error("Error fetching message", {
           code: message.error.code,
           error: message.error,
         });
+        missingMessageIds.add(messageIds[i]);
         return;
       }
 
@@ -80,30 +87,61 @@ export async function getMessagesBatch(
     })
     .filter(isDefined);
 
+  // if we errored, then try to refetch the missing messages
+  if (missingMessageIds.size > 0) {
+    logger.info("Missing messages", {
+      missingMessageIds: Array.from(missingMessageIds),
+    });
+    const nextRetryCount = retryCount + 1;
+    await sleep(1_000 * nextRetryCount);
+    const missingMessages = await getMessagesBatch(
+      Array.from(missingMessageIds),
+      accessToken,
+      nextRetryCount,
+    );
+    return [...messages, ...missingMessages];
+  }
+
   return messages;
 }
 
-async function findPreviousEmailsBySender(
+async function findPreviousEmailsWithSender(
   gmail: gmail_v1.Gmail,
   options: {
     sender: string;
     dateInSeconds: number;
   },
 ) {
-  const messages = await gmail.users.messages.list({
-    userId: "me",
-    q: `from:${options.sender} before:${options.dateInSeconds}`,
-    maxResults: 2,
-  });
+  // Check for both incoming emails from sender and outgoing emails to sender
+  const [incomingEmails, outgoingEmails] = await Promise.all([
+    // Incoming
+    gmail.users.messages.list({
+      userId: "me",
+      q: `from:${options.sender} before:${options.dateInSeconds}`,
+      maxResults: 2,
+    }),
+    // Outgoing
+    gmail.users.messages.list({
+      userId: "me",
+      q: `to:${options.sender} before:${options.dateInSeconds}`,
+      maxResults: 1,
+    }),
+  ]);
 
-  return messages.data.messages;
+  // Combine both incoming and outgoing messages
+  const allMessages = [
+    ...(incomingEmails.data.messages || []),
+    ...(outgoingEmails.data.messages || []),
+  ];
+
+  return allMessages;
 }
 
-export async function hasPreviousEmailsFromSender(
+export async function hasPreviousCommunicationWithSender(
   gmail: gmail_v1.Gmail,
   options: { from: string; date: Date; messageId: string },
 ) {
-  const previousEmails = await findPreviousEmailsBySender(gmail, {
+  const previousEmails = await findPreviousEmailsWithSender(gmail, {
     sender: options.from,
     dateInSeconds: +new Date(options.date) / 1000,
   });
@@ -131,12 +169,12 @@ const PUBLIC_DOMAINS = new Set([
   "@hey.com",
 ]);
 
-export async function hasPreviousEmailsFromSenderOrDomain(
+export async function hasPreviousCommunicationsWithSenderOrDomain(
   gmail: gmail_v1.Gmail,
   options: { from: string; date: Date; messageId: string },
 ) {
   const domain = extractDomainFromEmail(options.from);
-  if (!domain) return hasPreviousEmailsFromSender(gmail, options);
+  if (!domain) return hasPreviousCommunicationWithSender(gmail, options);
 
   // For public email providers (gmail, yahoo, etc), search by full email address
   // For company domains, search by domain to catch emails from different people at same company
@@ -144,7 +182,7 @@ export async function hasPreviousEmailsFromSenderOrDomain(
     ? options.from
     : domain;
 
-  return hasPreviousEmailsFromSender(gmail, {
+  return hasPreviousCommunicationWithSender(gmail, {
     ...options,
     from: searchTerm,
   });

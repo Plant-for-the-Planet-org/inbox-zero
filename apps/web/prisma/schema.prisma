@@ -55,7 +55,6 @@ model User {
   signature                 String?
   watchEmailsExpirationDate DateTime?
   lastSyncedHistoryId       String?
-  completedOnboarding       Boolean   @default(false) // deprecated
   completedOnboardingAt     DateTime? // questions about the user. e.g. their role
   completedAppOnboardingAt  DateTime? // how to use the app
   onboardingAnswers         Json?
@@ -185,14 +184,7 @@ model Rule {
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   executedRules ExecutedRule[]
 
-  // reply tracking fields
-  trackReplies             Boolean? // deprecated - If this is the reply tracking rule. Using partial unique index (created manually)
-  draftReplies             Boolean? // deprecated
-  draftRepliesInstructions String? // deprecated
-  // threadTrackers           ThreadTracker[] // deprecated
-
   // conditions: ai, group, static, category
-  type                RuleType? // deprecated
   conditionalOperator LogicalOperator @default(AND)
 
   // ai conditions
@@ -214,7 +206,10 @@ model Rule {
   categoryFilterType CategoryFilterType?
   categoryFilters    Category[]
 
+  systemType SystemType?
+
   @@unique([name, userId])
+  @@unique([userId, systemType])
 }
 
 model Action {
@@ -335,6 +330,10 @@ model Newsletter {
   email     String
   status    NewsletterStatus?
 
+  // For learned patterns for rules
+  patternAnalyzed Boolean   @default(false)
+  lastAnalyzedAt  DateTime?
+
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId String?
@@ -396,9 +395,6 @@ model ThreadTracker {
   messageId String
   resolved  Boolean           @default(false)
   type      ThreadTrackerType
-
-  // ruleId String?
-  // rule   Rule?   @relation(fields: [ruleId], references: [id], onDelete: Cascade)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -578,13 +574,6 @@ enum ExecutedRuleStatus {
   ERROR
 }
 
-enum RuleType {
-  AI
-  STATIC
-  GROUP
-  CATEGORY
-}
-
 enum GroupItemType {
   FROM
   SUBJECT
@@ -614,4 +603,14 @@ enum ProcessorType {
 enum CleanAction {
   ARCHIVE
   MARK_READ
+}
+
+enum SystemType {
+  TO_REPLY
+  NEWSLETTER
+  MARKETING
+  CALENDAR
+  RECEIPT
+  NOTIFICATION
+  // COLD_EMAIL // handled separately. we may unify in the future
 }

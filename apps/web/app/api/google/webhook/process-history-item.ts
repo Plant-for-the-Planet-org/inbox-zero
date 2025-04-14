@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import type { gmail_v1 } from "@googleapis/gmail";
 import prisma from "@/utils/prisma";
 import { emailToContent, parseMessage } from "@/utils/mail";
@@ -14,8 +15,9 @@ import { handleOutboundReply } from "@/utils/reply-tracker/outbound";
 import type { ProcessHistoryOptions } from "@/app/api/google/webhook/types";
 import { ColdEmailSetting } from "@prisma/client";
 import { logger } from "@/app/api/google/webhook/logger";
-import { isIgnoredSender } from "@/utils/filter-ignored-senders";
 import { internalDateToDate } from "@/utils/date";
+import { extractEmailAddress } from "@/utils/email";
+import { isIgnoredSender } from "@/utils/filter-ignored-senders";
 
 export async function processHistoryItem(
   {
@@ -154,7 +156,7 @@ export async function processHistoryItem(
     // categorize a sender if we haven't already
     // this is used for category filters in ai rules
     if (user.autoCategorizeSenders) {
-      const sender = message.headers.from;
+      const sender = extractEmailAddress(message.headers.from);
       const existingSender = await prisma.newsletter.findUnique({
         where: { email_userId: { email: sender, userId: user.id } },
         select: { category: true },

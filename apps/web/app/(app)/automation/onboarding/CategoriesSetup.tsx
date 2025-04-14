@@ -32,6 +32,10 @@ import {
   type CreateRulesOnboardingBody,
 } from "@/utils/actions/rule.validation";
 import { TooltipExplanation } from "@/components/TooltipExplanation";
+import {
+  ASSISTANT_ONBOARDING_COOKIE,
+  markOnboardingAsCompleted,
+} from "@/utils/cookies";
 
 const NEXT_URL = "/automation/onboarding/draft-replies";
 
@@ -135,8 +139,16 @@ export function CategoriesSetup({
             Next
           </Button>
 
-          <Button className="w-full" size="lg" variant="outline" asChild>
-            <Link href="/automation">Skip</Link>
+          <Button
+            className="w-full"
+            size="lg"
+            variant="outline"
+            onClick={() => {
+              markOnboardingAsCompleted(ASSISTANT_ONBOARDING_COOKIE);
+              router.push("/automation");
+            }}
+          >
+            Skip
           </Button>
         </div>
       </form>

@@ -1,5 +1,6 @@
 import type { CreateRuleBody } from "@/utils/actions/rule.validation";
-import { ActionType, RuleType } from "@prisma/client";
+import { ActionType } from "@prisma/client";
+import { ConditionType } from "@/utils/config";
 import {
   ForwardIcon,
   ShieldAlertIcon,
@@ -25,7 +26,7 @@ export const examples: {
       name: "Forward receipts",
       conditions: [
         {
-          type: RuleType.AI,
+          type: ConditionType.AI,
           instructions: "Forward receipts to alice@accountant.com.",
         },
       ],
@@ -42,7 +43,7 @@ export const examples: {
       name: "Archive and label newsletters",
       conditions: [
         {
-          type: RuleType.AI,
+          type: ConditionType.AI,
           instructions: "Archive newsletters and label them as 'Newsletter'.",
         },
       ],
@@ -60,7 +61,7 @@ export const examples: {
       name: "Label high priority emails",
       conditions: [
         {
-          type: RuleType.AI,
+          type: ConditionType.AI,
           instructions: `Mark high priority emails as "High Priority". Examples include:
 * Customer wants to cancel their plan
 * Customer wants to purchase
@@ -79,7 +80,7 @@ export const examples: {
       name: "Respond to question",
       conditions: [
         {
-          type: RuleType.AI,
+          type: ConditionType.AI,
           instructions:
             "If someone asks how much the premium plan is, respond: 'Our premium plan is $10 per month.'",
         },
@@ -100,7 +101,7 @@ export const examples: {
       name: "Draft meeting response",
       conditions: [
         {
-          type: RuleType.AI,
+          type: ConditionType.AI,
           instructions: "Select this rule when someone asks to book a meeting.",
         },
       ],
@@ -126,7 +127,7 @@ export const examples: {
       name: "Label founder pitch decks",
       conditions: [
         {
-          type: RuleType.AI,
+          type: ConditionType.AI,
           instructions: "Label founder pitch decks as 'Pitch'.",
         },
       ],
